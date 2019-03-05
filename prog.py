@@ -33,24 +33,26 @@ for k, v in attributes.items():
 	print(k,':',v)
 print()
 
+### USE defaultdict() TO PREVENT KEY ERROR WHEN ADDING NEW
+### NESTED DICTIONARY KEYS
 # Number of times each attribute has implied each target
-attributeCausations = defaultdict()
-for i in attributes:
-	attributeCausations[i] = defaultdict()
-	for j in attributes[i]:
-		attributeCausations[i][j] = defaultdict()
-		for k in targets:
-			attributeCausations[i][j][k] = 0
+attributeCausations = {}
+for attribute in attributes:
+	attributeCausations[attribute] = defaultdict()
+	for attributeValue in attributes[attribute]:
+		attributeCausations[attribute][attributeValue] = defaultdict()
+		for target in targets:
+			attributeCausations[attribute][attributeValue][target] = 0
 
 # Number of times each attribute has occurred
-attributeOccurrences = defaultdict()
-for i in attributes:
-	attributeOccurrences[i] = defaultdict()
-	for j in attributes[i]:
-		attributeOccurrences[i][j] = 0
+attributeOccurrences = {}
+for attribute in attributes:
+	attributeOccurrences[attribute] = defaultdict()
+	for attributeValue in attributes[attribute]:
+		attributeOccurrences[attribute][attributeValue] = 0
 
-# Cumulative entropy of each attribute
-entropies = {}
+# Get number of attribute occurrences and number of times each
+# implies a target
 for i in range(numAttributes + 4, numEntries + numAttributes + 4):
 	line = lines[i].strip().split(',')
 	j = 0
@@ -59,3 +61,21 @@ for i in range(numAttributes + 4, numEntries + numAttributes + 4):
 		attributeOccurrences[attribute][line[j]] += 1
 		j += 1
 
+# Calculate entropies
+# E = -p log2 (p)
+entropies = {}
+setEntropy = 0
+for attribute in attributes:
+	entropies[attribute] = defaultdict()
+	for attributeValue in attributes[attribute]:
+		entropies[attribute][attributeValue] = 0
+
+for attribute in attributes:
+	for attributeValue in attributes[attribute]:
+		for target in targets:
+			if (attributeCausations[attribute][attributeValue][target] / attributeOccurrences[attribute][attributeValue]) > 0:
+				entropies[attribute][attributeValue] += attributeCausations[attribute][attributeValue][target] / attributeOccurrences[attribute][attributeValue] * log2(attributeCausations[attribute][attributeValue][target] / attributeOccurrences[attribute][attributeValue])
+		entropies[attribute][attributeValue] *= -1
+		setEntropy += entropies[attribute][attributeValue]
+
+print('Calculated set entropy:',setEntropy)
