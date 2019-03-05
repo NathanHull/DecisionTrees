@@ -1,0 +1,1 @@
+Decision trees are hierarchical data structures functioning as classifier systems. They are constructed based on a set of training data for which the value of the target function is known (i.e. a form of Supervised Learning).  ID3 is a greedy algorith that generates shortest-path decision trees.
