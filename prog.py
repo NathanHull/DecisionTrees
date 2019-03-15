@@ -3,6 +3,72 @@ from collections import OrderedDict, defaultdict
 from math import log2
 
 
+class Entry:
+	target = ''
+	values = {}
+
+	
+class Node:
+	name = ''
+	nextNodes = defaultdict()
+	isLeaf = False
+
+
+def createNode(attribute, currentValues, currI):
+	if attribute in processedAttributes:
+		return None
+		
+	root = Node()
+	root.name = attribute
+	processedAttributes.add(attribute)
+
+	# If all attributes have been processed,
+	# each must be a leaf giving a target value
+	if len(processedAttributes) >= numAttributes:
+		for attributeValue in attributes[attribute]:
+			node = Node()
+			node.isLeaf = True
+			currBest = -1
+			for target in targets:
+				if attributeCausations[attribute][attributeValue][target] > currBest:
+					node.name = target
+					currBest = attributeCausations[attribute][attributeValue][target]
+			root.nextNodes[attributeValue] = node
+	# Otherwise, calculate best next gain for each value
+	else:
+		newGains = {}
+		currI += 1
+		nextAttr = sortedGains[currI]
+		isFound = False
+		for attributeValue in attributes[attribute]:
+			for target in targets:
+				if attributeCausations[attribute][attributeValue][target] / attributeOccurrences[attribute][attributeValue] >= .9:
+					node = Node()
+					node.name = target
+					node.isLeaf = True
+					root.nextNodes[attributeValue] = node
+					isFound = True
+					break
+			
+			if not isFound:
+				node = Node()
+				node.name = 'invalid'
+				node.isLeaf = True
+				root.nextNodes[attributeValue] = node
+			
+
+	return root
+
+
+def printTree(node):
+	print(node.name,'[', end='')
+	for nextNode in node.nextNodes:
+		print(nextNode,node.nextNodes[nextNode].name,end=', ')
+	print(']')
+	for nextNode in node.nextNodes:
+		print(node.name,'--',nextNode,'-->', end=' ')
+		# printTree(node.nextNodes[nextNode])
+
 if len(sys.argv) < 2 or len(sys.argv) > 3:
 	print('Usage error: prog.py (training data file) [test data file]')
 	sys.exit()
@@ -33,8 +99,8 @@ for k, v in attributes.items():
 	print(k,':',v)
 print()
 
-### USE defaultdict() TO PREVENT KEY ERROR WHEN ADDING NEW
-### NESTED DICTIONARY KEYS
+### USE defaultdict() TO PREVENT KEY ERROR WHEN ADDING 
+### NEW NESTED DICTIONARY KEYS
 # Number of times each attribute has implied each target
 attributeCausations = {}
 for attribute in attributes:
@@ -78,4 +144,23 @@ for attribute in attributes:
 		entropies[attribute][attributeValue] *= -1
 		setEntropy += entropies[attribute][attributeValue]
 
-print('Calculated set entropy:',setEntropy)
+print('Calculated set entropy:',setEntropy,'\n')
+
+# Calculate Information Gains
+gains = {}
+for attribute in attributes:
+	gains[attribute] = setEntropy
+
+for attribute in attributes:
+	for attributeValue in attributes[attribute]:
+		gains[attribute] -= (attributeOccurrences[attribute][attributeValue] / numEntries) * entropies[attribute][attributeValue]
+	print(attribute,'gain:',gains[attribute])
+
+# Recursively create decision tree
+sortedGains = sorted(gains, key=gains.get, reverse=True)
+processedValues = {}
+processedAttributes = set()
+firstAttribute = sortedGains[0]
+currI = 0
+root = createNode(firstAttribute, defaultdict(), currI)
+printTree(root)
