@@ -16,12 +16,9 @@ class Node:
 		self.isLeaf = False
 
 
-def createNode(currAttr, subset):
-	if currAttr in processedAttributes:
-		return None
-		
+def createNode(currAttr, subset, procAttr):		
 	root = Node(currAttr)
-	processedAttributes.add(currAttr)
+	procAttr.add(currAttr)
 
 	### USE defaultdict() TO PREVENT KEY ERROR WHEN ADDING 
 	### NEW NESTED DICTIONARY KEYS
@@ -43,12 +40,10 @@ def createNode(currAttr, subset):
 
 	# Get number of attribute occurrences and number of times each
 	# implies a target
-	for entry in entries:
-		j = 0
-		for attribute in attributes:
-			attributeCausations[attribute][line[j]][entry.target] += 1
-			attributeOccurrences[attribute][line[j]] += 1
-			j += 1
+	for entry in subset:
+		for k,v in entry.values.items():
+			attributeCausations[k][v][entry.target] += 1
+			attributeOccurrences[k][v] += 1
 
 	# Calculate entropies
 	# E = -p log2 (p)
@@ -81,17 +76,20 @@ def createNode(currAttr, subset):
 	print()
 
 	sortedGains = sorted(gains, key=gains.get, reverse=True)
+	i = 0
 	targetGain = sortedGains[0]
+	while targetGain in procAttr and i < len(sortedGains) - 1:
+		i += 1
+		targetGain = sortedGains[i]
+	if targetGain in procAttr:
+		targetGain = ''
+	print('Target gain:',targetGain)
 
 
-
-
-
-
-
+	## CODE THAT IS UNIQUE TO THIS FUNCTION
 	# If all attributes have been processed,
 	# each must be a leaf giving a target value
-	if len(processedAttributes) >= numAttributes:
+	if len(procAttr) >= numAttributes:
 		for attributeValue in attributes[currAttr]:
 			node = Node()
 			node.isLeaf = True
@@ -103,43 +101,43 @@ def createNode(currAttr, subset):
 			root.nextNodes[attributeValue] = node
 	# Otherwise, calculate best next gain for each value
 	else:
-		leafFound = False
 		for attributeValue in attributes[currAttr]:
+			leafFound = False
 			for target in targets:
 				# If we can find a class that basically
 				# entirely is defined (90%)
-				if attributeOccurrences[currAttr][attributeValue] != 0 and attributeCausations[currAttr][attributeValue][target] / attributeOccurrences[currAttr][attributeValue] >= .9:
+				if attributeOccurrences[currAttr][attributeValue] != 0 and attributeCausations[currAttr][attributeValue][target] == attributeOccurrences[currAttr][attributeValue]:
 					node = Node()
 					node.name = target
 					node.isLeaf = True
 					root.nextNodes[attributeValue] = node
 					leafFound = True
+					print('Found leaf!','Adding node',attributeValue,'which is',node.name,'to',root.name)
 					break
 			# Otherwise, use new gains
 			if not leafFound:
 				newSubset = set()
+				tempProc = set()
 				for entry in subset:
 					if entry.values[currAttr] == attributeValue:
 						newSubset.add(entry)
-				node = createNode(targetGain, newSubset)
-				if node is not None:
-					root.nextNodes[attributeValue] = node
+				for proc in procAttr:
+					tempProc.add(proc)
+				node = createNode(targetGain, newSubset, tempProc)
+				root.nextNodes[attributeValue] = node
+				print('Adding node',attributeValue,'which is',node.name,'to',root.name)
+
 
 	return root
 
 
-def printTree(node):
-	if node.isLeaf:
-		print(node.name)
-		return
-
-	print(node.name,'[ ', end='')
+def printTree(node, level = 0):
 	for nextNode in node.nextNodes:
-		print(nextNode,':',node.nextNodes[nextNode].name,end=', ')
-	print(']')
-	for nextNode in node.nextNodes:
-		print(node.name,'--',nextNode,'-->', end=' ')
-		printTree(node.nextNodes[nextNode])
+		print('\t'*level,node.name,'--',end='')
+		print(nextNode,end='')
+		print('-->',end=' ')
+		print(node.nextNodes[nextNode].name)
+		printTree(node.nextNodes[nextNode], level + 1)
 
 if len(sys.argv) < 2 or len(sys.argv) > 3:
 	print('Usage error: prog.py (training data file) [test data file]')
@@ -236,8 +234,7 @@ print()
 
 # Recursively create decision tree
 sortedGains = sorted(gains, key=gains.get, reverse=True)
-processedValues = {}
-processedAttributes = set()
 firstAttribute = sortedGains[0]
-root = createNode(firstAttribute, entries)
+root = createNode(firstAttribute, entries, set())
+print('\nPRINTING TREE:')
 printTree(root)
